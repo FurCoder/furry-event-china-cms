@@ -1,61 +1,41 @@
-import { EventScaleLabel, EventStatusLabel } from "@/consts/event";
-import { eventItem } from "@/dashboard/event/CustomList";
-import "dayjs/locale/zh-cn"
 import {
-  createEvent,
-  getAllOrganizations,
-  updateEvent,
-} from "@/dashboard/event/actions";
-import {
-  EventScale,
-  EventScaleKeyType,
-  EventStatus,
-  EventStatusKeyType,
-} from "@/types/event";
+  createOrganization,
+  updateOrganization,
+} from "@/dashboard/organization/action";
+import { OrganizationStatus } from "@/types/organization";
 import { OrganizationRecord } from "@/xata/xata";
 import {
-  ActionIcon,
   Box,
   Button,
   Card,
   Center,
-  Chip,
   Container,
   Divider,
-  Fieldset,
   Group,
   Image,
   Modal,
-  NumberInput,
   Select,
   SimpleGrid,
   Stack,
-  Text,
   TextInput,
   Textarea,
   Title,
   rem,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import { DatePickerInput } from "@mantine/dates";
 import { Dropzone, FileWithPath, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import {
-  IconPhoto,
-  IconPlus,
-  IconTrash,
-  IconUpload,
-  IconX,
-} from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
+import { useState } from "react";
 
-function EventEditor({
-  event,
+function OrganizationEditor({
+  organization,
   opened,
   onClose,
 }: {
-  event?: eventItem;
+  organization?: OrganizationRecord;
   opened: boolean;
   onClose: () => void;
 }) {
@@ -63,39 +43,40 @@ function EventEditor({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={event ? "编辑展会" : "新建展会"}
+      title={organization ? "编辑展商" : "新建展商"}
       centered
       size="xl"
     >
-      <EventEditorContent event={event} onClose={onClose} />
+      <OrganizationEditorContent
+        organization={organization}
+        onClose={onClose}
+      />
     </Modal>
   );
 }
 
-function EventEditorContent({
-  event,
+function OrganizationEditorContent({
+  organization,
   onClose,
 }: {
-  event?: eventItem;
+  organization?: OrganizationRecord;
   onClose: () => void;
 }) {
   const form = useForm({
     initialValues: {
-      name: event?.name || "",
-      startDate: event?.startDate,
-      endDate: event?.endDate,
-      city: event?.city || "",
-      address: event?.address || "",
-      website: event?.website || "",
-      coverUrl: event?.coverUrl || "fec-event-default-cover.png",
-      posterUrl: event?.posterUrl || [],
-      organization: event?.organization?.id,
-      slug: event?.slug || "",
-      detail: event?.detail || "",
-      status: event?.status || EventStatus.EventScheduled,
-      scale: event?.scale || EventScale.Cosy,
-      addressLat: event?.addressLat || "",
-      addressLon: event?.addressLon || "",
+      name: organization?.name || "",
+      slug: organization?.slug || "",
+      description: organization?.description || "",
+      creationTime: organization?.creationTime,
+      logoUrl: organization?.logoUrl || "",
+      website: organization?.website || "",
+      contactMail: organization?.contactMail || "",
+      status: organization?.status || "",
+      twitter: organization?.twitter || "",
+      weibo: organization?.weibo || "",
+      bilibili: organization?.bilibili || "",
+      wikifur: organization?.wikifur || "",
+      qqGroup: organization?.qqGroup || "",
     },
 
     validate: {
@@ -105,72 +86,36 @@ function EventEditorContent({
 
   type formType = typeof form.values;
 
-  const [organizationList, setOrganizationList] = useState<
-    OrganizationRecord[]
-  >([]);
-
-  const [selectedCoverImgae, setSelectedCoverImage] = useState<FileWithPath[]>(
-    []
-  );
-  const [selectedPosterImgae, setSelectedPosterImage] = useState<
-    FileWithPath[]
-  >([]);
-
-  const fetchOrganizations = async () => {
-    const res = await getAllOrganizations();
-    setOrganizationList(res);
-  };
-
-  const organizationSelectOptions = organizationList.map((item) => ({
-    label: item.name,
-    value: item.id,
-  }));
-
-  const selectedOrganization = organizationList.find(
-    (item) => item.id == form.values.organization
-  );
-
-  useEffect(() => {
-    fetchOrganizations();
-  }, []);
-
-  const generateEventSlug = () => {
-    const selectedYear = form.values.startDate?.getFullYear();
-    const selectedMonth = form.values.startDate
-      ?.toLocaleString("en-us", { month: "short" })
-      .toLocaleLowerCase();
-    const city = form.values.city;
-    if (!selectedYear || !selectedMonth || !city) {
-      return;
-    }
-
-    return `${selectedYear}-${selectedMonth}-${city}-con`;
-  };
-
   const handleSubmit = async (formData: formType) => {
-    console.log(formData);
-    if (event?.id) {
-      const res = await updateEvent({
-        id: event.id,
-        ...formData,
+    const validPayload = Object.fromEntries(
+      Object.entries(formData).filter(
+        ([key, value]) => value !== null && value !== ""
+      )
+    );
+    console.log(validPayload);
+
+    if (organization?.id) {
+      const res = await updateOrganization({
+        id: organization.id,
+        ...validPayload,
       });
       if (res) {
         onClose();
         notifications.show({
           title: "更新成功",
-          message: "更新展会数据成功",
+          message: "更新展商数据成功",
           color: "teal",
         });
       }
       console.log("update res", res);
     } else {
-      const res = await createEvent(formData);
+      const res = await createOrganization(validPayload);
       console.log("create res", res);
       if (res) {
         onClose();
         notifications.show({
           title: "更新成功",
-          message: "创建展会数据成功",
+          message: "创建展商数据成功",
           color: "teal",
         });
       }
@@ -185,87 +130,76 @@ function EventEditorContent({
             基础信息
           </Title>
           <Stack gap="xs">
-            <TextInput
-              withAsterisk
-              label="展会名称"
-              {...form.getInputProps("name")}
-            />
-
-            <Select
-              label="展会展方"
-              data={organizationSelectOptions}
-              {...form.getInputProps("organization")}
-            />
-
-            <Group gap="xs" grow>
-              <DateTimePicker
+            <Group justify="space-between" grow>
+              <TextInput
                 withAsterisk
-                valueFormat="YYYY年MM月DD日 hh:mm A"
-                locale="zh-cn"
-                label="开始日期"
-                
-                placeholder="Pick date"
-                {...form.getInputProps("startDate")}
+                label="展会名称"
+                {...form.getInputProps("name")}
               />
-              <DateTimePicker
+
+              <Select
+                label="展会状态"
+                data={Object.keys(OrganizationStatus).map((key) => ({
+                  label: key,
+                  value:
+                    OrganizationStatus[key as keyof typeof OrganizationStatus],
+                }))}
+                {...form.getInputProps("status")}
+              />
+
+              <DatePickerInput
                 withAsterisk
-                label="结束日期"
-                locale="zh-cn"
+                valueFormat="YYYY年MM月DD日"
+                label="开始日期"
                 placeholder="Pick date"
-                valueFormat="YYYY年MM月DD日 hh:mm A"
-                {...form.getInputProps("endDate")}
+                {...form.getInputProps("creationTime")}
               />
             </Group>
 
             <TextInput
               withAsterisk
-              label="展会Slug"
+              label="展商Slug"
               {...form.getInputProps("slug")}
             />
-            <Button
-              onClick={() => {
-                const slug = generateEventSlug();
-                if (!slug) {
-                  return;
-                }
-                form.setFieldValue("slug", slug);
-              }}
-            >
-              生成Slug
-            </Button>
           </Stack>
         </Container>
 
         <Divider my="sm" variant="dotted" />
 
         <Container my="md">
-          <Title order={5}>地理信息</Title>
+          <Title order={5}>媒体信息</Title>
           <Stack>
-            <TextInput
-              withAsterisk
-              label="展会城市"
-              {...form.getInputProps("city")}
-            />
-
-            <TextInput
-              withAsterisk
-              label="展会地址"
-              {...form.getInputProps("address")}
-            />
-
-            <Group gap="xs" grow>
-              <NumberInput
-                label="经度"
-                placeholder="Hide controls"
-                hideControls
-                {...form.getInputProps("addressLat")}
+            <Group grow>
+              <TextInput
+                withAsterisk
+                label="网站"
+                {...form.getInputProps("website")}
               />
 
-              <NumberInput
-                label="纬度"
+              <TextInput
+                withAsterisk
+                label="联系邮箱"
+                {...form.getInputProps("contactMail")}
+              />
+
+              <TextInput
+                withAsterisk
+                label="QQ群"
+                {...form.getInputProps("qqGroup")}
+              />
+            </Group>
+
+            <Group gap="xs" grow>
+              <TextInput
+                label="Twitter"
                 placeholder="Hide controls"
-                hideControls
-                {...form.getInputProps("addressLon")}
+                {...form.getInputProps("twitter")}
+              />
+
+              <TextInput
+                label="Weibo"
+                placeholder="Hide controls"
+                {...form.getInputProps("weibo")}
               />
             </Group>
           </Stack>
@@ -276,7 +210,7 @@ function EventEditorContent({
         <Container my="md">
           <Title order={5}>展会附加信息</Title>
           <Stack>
-            <Select
+            {/* <Select
               label="展会状态"
               placeholder="Pick value"
               data={Object.keys(EventStatus).map((key) => ({
@@ -296,19 +230,15 @@ function EventEditorContent({
               {...form.getInputProps("scale")}
             />
 
-            <TextInput
-              withAsterisk
-              label="展会信源"
-              {...form.getInputProps("website")}
-            />
+             */}
 
             <Textarea
-              label="展会描述"
+              label="展商描述"
               description="Input description"
               placeholder="Input placeholder"
               autosize
               maxRows={20}
-              {...form.getInputProps("detail")}
+              {...form.getInputProps("description")}
             />
           </Stack>
         </Container>
@@ -322,108 +252,20 @@ function EventEditorContent({
             <TextInput
               label="封面图片"
               withAsterisk
-              {...form.getInputProps("coverUrl")}
+              {...form.getInputProps("logoUrl")}
             />
             <Group>
-              <Chip
-                checked={false}
-                variant="filled"
-                onClick={() => {
-                  const organizationSlug = organizationList.find(
-                    (item) => item.id === form.values.organization
-                  )?.slug;
-                  form.setFieldValue(
-                    "coverUrl",
-                    `organizations/${organizationSlug}/${form.values.slug}/cover.webp`
-                  );
-                }}
-              >
-                通用格式
-              </Chip>
-              <Chip
-                checked={false}
-                variant="filled"
-                onClick={() =>
-                  form.setFieldValue("coverUrl", "fec-event-default-cover.png")
-                }
-              >
-                默认图片
-              </Chip>
-              <Chip
-                checked={false}
-                variant="filled"
-                onClick={() =>
-                  form.setFieldValue("coverUrl", "fec-event-blank-cover.png")
-                }
-              >
-                待揭晓图片
-              </Chip>
-
-              <Chip
-                checked={false}
-                variant="filled"
-                onClick={() =>
-                  form.setFieldValue("coverUrl", "fec-event-cancel-cover.png")
-                }
-              >
-                取消图片
-              </Chip>
-
               <UploadImgae
-                pathPrefix={`organizations/${selectedOrganization?.slug}/${form.values.slug}/`}
-                defaultImageName="cover"
-                onUploadSuccess={(s) => form.setFieldValue("coverUrl", s)}
+                pathPrefix={`organizations/${form.values.slug}/`}
+                defaultImageName="logo"
+                onUploadSuccess={(s) => form.setFieldValue("logoUrl", s)}
               />
-            </Group>
-
-            <Group>
-              <Fieldset w="100%" legend="展会详情图片">
-                <ActionIcon
-                  size={"sm"}
-                  onClick={() =>
-                    form.setFieldValue(
-                      "posterUrl",
-                      form.values.posterUrl.concat([""])
-                    )
-                  }
-                >
-                  <IconPlus />
-                </ActionIcon>
-                {form.values.posterUrl.map((item, index) => (
-                  <Group align="flex-end" key={index}>
-                    <TextInput
-                      style={{ flexGrow: 1 }}
-                      label={`展会详情图片 ${index + 1}`}
-                      {...form.getInputProps(`posterUrl.${index}`)}
-                    />
-                    <UploadImgae
-                      pathPrefix={`organizations/${selectedOrganization?.slug}/${form.values.slug}/`}
-                      defaultImageName={`details-${index + 1}`}
-                      onUploadSuccess={(s) =>
-                        form.setFieldValue(`posterUrl.${index}`, s)
-                      }
-                    />
-                    <Button
-                      color="red"
-                      size={"sm"}
-                      onClick={() =>
-                        form.setFieldValue(
-                          "posterUrl",
-                          form.values.posterUrl.filter((_, i) => i !== index)
-                        )
-                      }
-                    >
-                      <IconTrash />
-                    </Button>
-                  </Group>
-                ))}
-              </Fieldset>
             </Group>
           </Stack>
         </Container>
 
         <Group justify="flex-end" mt="md">
-          <Button type="submit">Submit</Button>
+          <Button type="submit">保存</Button>
         </Group>
       </form>
     </Box>
@@ -574,6 +416,7 @@ function UploadImgae({
               onPaste={(e) => {
                 if (e.clipboardData.files.length) {
                   setImages([e.clipboardData.files[0]]);
+
                   if (e.clipboardData.files[0]) {
                     setImageMINE(
                       e.clipboardData.files[0].type.replace("image/", "")
@@ -601,4 +444,4 @@ function UploadImgae({
   );
 }
 
-export default EventEditor;
+export default OrganizationEditor;

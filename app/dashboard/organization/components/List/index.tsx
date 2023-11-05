@@ -1,6 +1,4 @@
 "use client";
-import EventEditor from "@/components/EventEditor";
-import { EventRecord } from "@/xata/xata";
 import {
   ActionIcon,
   Button,
@@ -18,36 +16,35 @@ import { useDisclosure } from "@mantine/hooks";
 import { SelectedPick } from "@xata.io/client";
 import dayjs from "dayjs";
 import { Suspense, useEffect, useState } from "react";
-import { getEvents } from "./actions";
-import { EventStatusLabel, EventScaleLabel } from "@/consts/event";
+import { getOrganizations } from "../../action";
+import { OrganizationRecord } from "@/xata/xata";
 import { IconEdit } from "@tabler/icons-react";
+import OrganizationEditor from "@/components/OrganizationEditor";
 
-export type eventItem = SelectedPick<
-  EventRecord,
-  ("*" | "organization.id" | "organization.name" | "organization.slug")[]
->;
+export type organizationItem = SelectedPick<OrganizationRecord, "*"[]>;
 
 export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
-  const [events, setEvents] = useState<eventItem[]>([]);
+  const [organizations, setOrganizations] = useState<organizationItem[]>([]);
   const [total, setTotal] = useState(0);
   const [activePage, setPage] = useState(1);
 
   const [opened, { open, close }] = useDisclosure(false);
-  const [editingEvent, setEditingEvent] = useState<eventItem>();
+  const [editingOrganization, setEditingOrganization] =
+    useState<organizationItem>();
 
-  async function fetchEventList() {
-    const { events, total } = await getEvents({
+  async function fetchOrganizationList() {
+    const { organizations, total } = await getOrganizations({
       offset: (activePage - 1) * pageSize,
     });
-    setEvents(events.records);
+    setOrganizations(organizations.records);
     setTotal(total);
   }
 
   useEffect(() => {
-    fetchEventList();
+    fetchOrganizationList();
   }, [activePage]);
 
-  const rows = events.map((record) => (
+  const rows = organizations.map((record) => (
     <TableTr key={record.id}>
       <TableTd>
         <Group justify="space-between">
@@ -55,7 +52,7 @@ export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
           <ActionIcon
             size="sm"
             onClick={() => {
-              setEditingEvent(record);
+              setEditingOrganization(record);
               open();
             }}
           >
@@ -63,16 +60,9 @@ export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
           </ActionIcon>
         </Group>
       </TableTd>
-      <TableTd>{EventStatusLabel[record.status]}</TableTd>
-      <TableTd>{EventScaleLabel[record.scale]}</TableTd>
-      <TableTd>{record.city}</TableTd>
-      <TableTd>{record.organization?.name}</TableTd>
-      <TableTd>
-        {`${dayjs(record.startDate).format("YYYY-MM-DD")} - ${dayjs(
-          record.endDate
-        ).format("YYYY-MM-DD")}`}
-      </TableTd>
-      <TableTd>{record.address}</TableTd>
+      <TableTd>{record.status}</TableTd>
+      <TableTd>{dayjs(record.creationTime).format("YYYY-MM-DD")}</TableTd>
+      <TableTd style={{ maxWidth: 200 }}>{record.description}</TableTd>
     </TableTr>
   ));
 
@@ -81,11 +71,11 @@ export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
       <Group justify="flex-end" my="md">
         <Button
           onClick={() => {
-            setEditingEvent(undefined);
+            setEditingOrganization(undefined);
             open();
           }}
         >
-          添加展会
+          添加展商
         </Button>
       </Group>
 
@@ -95,11 +85,8 @@ export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
             <TableTr>
               <TableTh>名称</TableTh>
               <TableTh>状态</TableTh>
-              <TableTh>规模</TableTh>
-              <TableTh>城市</TableTh>
-              <TableTh>展商</TableTh>
-              <TableTh>时间</TableTh>
-              <TableTh>地址</TableTh>
+              <TableTh>建立时间</TableTh>
+              <TableTh>描述</TableTh>
             </TableTr>
           </TableThead>
           <Suspense fallback={"loading"}>
@@ -113,13 +100,10 @@ export default function CustomList({ pageSize = 15 }: { pageSize?: number }) {
         total={Math.ceil(total / pageSize)}
       />
 
-      <EventEditor
-        event={editingEvent}
+      <OrganizationEditor
+        organization={editingOrganization}
         opened={opened}
-        onClose={() => {
-          close();
-          fetchEventList();
-        }}
+        onClose={close}
       />
     </>
   );

@@ -1,10 +1,10 @@
 "use server";
 
-import { Event, EventRecord, XataClient } from "@/xata/xata";
+import { OrganizationRecord, XataClient } from "@/xata/xata";
 import { EditableData, Identifiable } from "@xata.io/client";
 const xata = new XataClient();
 
-export async function getEvents({
+export async function getOrganizations({
   offset = 0,
   size = 15,
 }: {
@@ -13,26 +13,21 @@ export async function getEvents({
 }) {
   "use server";
   try {
-    const total = await await xata.db.event.summarize({
+    const total = await await xata.db.organization.summarize({
       summaries: {
         total: { count: "*" },
       },
     });
     total;
-    const events = await xata.db.event
-      .select([
-        "*",
-        "organization.name",
-        "organization.id",
-        "organization.slug",
-      ])
-      .sort("startDate", "desc")
+    const organizations = await xata.db.organization
+      .select(["*"])
+      .sort("xata.createdAt", "desc")
       .getPaginated({
         pagination: { size, offset },
       });
     return {
-      events: {
-        records: events.records.toArray(),
+      organizations: {
+        records: organizations.records.toArray(),
       },
       total: total.summaries[0].total,
     };
@@ -51,12 +46,12 @@ export async function getAllOrganizations() {
   }
 }
 
-export async function createEvent(
-  event: Omit<EditableData<EventRecord>, "id"> & Partial<Identifiable>
+export async function createOrganization(
+  event: Omit<EditableData<OrganizationRecord>, "id"> & Partial<Identifiable>
 ) {
   "use server";
   try {
-    const res = await xata.db.event.create(event);
+    const res = await xata.db.organization.create(event);
     if (res.id) {
       return res;
     }
@@ -66,16 +61,16 @@ export async function createEvent(
   }
 }
 
-export async function updateEvent(
-  event: Partial<EditableData<EventRecord>> & Identifiable
+export async function updateOrganization(
+  organization: Partial<EditableData<OrganizationRecord>> & Identifiable
 ) {
   "use server";
   try {
-    const res = await xata.db.event.update(event);
+    const res = await xata.db.organization.update(organization);
     if (res?.id) {
       return res;
     }
   } catch (error) {
-    throw new Error("Failed to update event.");
+    throw new Error("Failed to update event.", { cause: error });
   }
 }

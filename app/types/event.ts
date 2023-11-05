@@ -12,6 +12,8 @@ export const EventStatus = {
   EventScheduled: "scheduled",
 };
 
+export type EventStatusKeyType = keyof typeof EventStatus;
+
 export const EventStatusSchema = {
   [EventStatus.EventCancelled]: "https://schema.org/EventCancelled",
   [EventStatus.EventMovedOnline]: "https://schema.org/EventMovedOnline",
@@ -32,3 +34,6 @@ export const EventScale = {
   /** 没有这种规模 */
   Mega: "mega",
 };
+
+export type EventScaleKeyType = keyof typeof EventScale;
+
